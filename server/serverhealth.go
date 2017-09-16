@@ -1,7 +1,7 @@
 package server
 
 import (
-	"fmt"
+	"log"
 	"math"
 
 	"github.com/sbiscigl/load-balancer/params"
@@ -42,11 +42,11 @@ func (hm *HealthMap) FindHealthy() (*Server, bool) {
 
 /*PrintMap a debugging statement*/
 func (hm *HealthMap) PrintMap() {
-	fmt.Println("{")
+	log.Println("{")
 	for k, v := range hm.serverMap {
-		fmt.Println("\t[" + k + ":" + v.ToString())
+		log.Println("\t[" + k + ":" + v.ToString())
 	}
-	fmt.Println("}")
+	log.Println("}")
 }
 
 /*SetHealth sets health of one of the servers*/

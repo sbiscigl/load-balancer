@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	intervalCheck = time.Second * 10
+	intervalCheck = time.Second * 2
+	debug         = false
 )
 
 /*HealthMap type for dealing with server use and health*/
@@ -95,7 +96,10 @@ func (hm *HealthMap) checkHealthOnServers() {
 			health := entities.NewHealthCheckResponseFromBytes(read).IsHealthy()
 			hm.serverMap[k] = NewServer(v.Host, health, v.IsUsed)
 		}
-		hm.PrintMap()
+		/*debugging for looking at the health status of serevers, is very verbose*/
+		if debug {
+			hm.PrintMap()
+		}
 		/*sleep on check interval*/
 		time.Sleep(intervalCheck)
 	}

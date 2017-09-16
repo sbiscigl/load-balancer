@@ -13,8 +13,6 @@ func main() {
 	health := server.NewServerHealthMap(env)
 	balancer := requesthandler.New(health)
 
-	health.PrintMap()
-
 	http.Handle("/", balancer)
 	http.ListenAndServe(":"+env.GetPort(), nil)
 }

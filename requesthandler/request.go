@@ -30,14 +30,13 @@ func (rh *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s, found := rh.servers.FindHealthy()
 	if found == false {
 		/*return 503 and response with information*/
-		w.Write(entities.NewResponse(503, "there are no healthy servers").ToJSON())
 		w.WriteHeader(503)
+		w.Write(entities.NewResponse(503, "there are no healthy servers").ToJSON())
 	} else {
 		req, err := http.NewRequest(r.Method, "http://"+s.Host, r.Body)
 		if err != nil {
 			log.Println("could not create request")
 		}
-
 		/*Loop through headers*/
 		for name, headers := range r.Header {
 			name = strings.ToLower(name)
@@ -62,15 +61,15 @@ func (rh *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			rh.servers.SetHealth(s.Host, false)
 			/*retry*/
 			rh.ServeHTTP(w, r)
-		}
+		} else {
+			defer resp.Body.Close()
+			read, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Println("error reading body")
+			}
 
-		defer resp.Body.Close()
-		read, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Println("error reading body")
+			w.WriteHeader(resp.StatusCode)
+			w.Write(read)
 		}
-
-		w.WriteHeader(resp.StatusCode)
-		w.Write(read)
 	}
 }

@@ -1,10 +1,18 @@
 package server
 
 import (
+	"io/ioutil"
 	"log"
 	"math"
+	"net/http"
+	"time"
 
+	"github.com/sbiscigl/load-balancer/entities"
 	"github.com/sbiscigl/load-balancer/params"
+)
+
+const (
+	intervalCheck = time.Second * 10
 )
 
 /*HealthMap type for dealing with server use and health*/
@@ -18,10 +26,12 @@ func NewServerHealthMap(p *params.Params) *HealthMap {
 	for _, host := range p.GetServerAddresses() {
 		serverMap[host] = NewServer(host, true, 0)
 	}
-	/*TODO: start a go func that polls forever*/
-	return &HealthMap{
+	health := &HealthMap{
 		serverMap: serverMap,
 	}
+	/*start health check pool*/
+	go health.checkHealthOnServers()
+	return health
 }
 
 /*FindHealthy To balence traffic we use a counter that shows how many requests*/
@@ -62,4 +72,31 @@ func (hm *HealthMap) IncrimentUseCount(host string) {
 /*DecrimentUseCount decirments the usages of one of the instances*/
 func (hm *HealthMap) DecrimentUseCount(host string) {
 	hm.serverMap[host].IsUsed--
+}
+
+func (hm *HealthMap) checkHealthOnServers() {
+	client := &http.Client{}
+	for {
+		for k, v := range hm.serverMap {
+			resp, err := client.Get("http://" + k + "/_health")
+			if err != nil {
+				log.Println("error in requesting health")
+			}
+			if resp.StatusCode != 200 {
+				log.Println("health check failing on host: " + k + " with status: " +
+					resp.Status)
+			}
+			defer resp.Body.Close()
+			read, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Println("error reading body")
+			}
+
+			health := entities.NewHealthCheckResponseFromBytes(read).IsHealthy()
+			hm.serverMap[k] = NewServer(v.Host, health, v.IsUsed)
+		}
+		hm.PrintMap()
+		/*sleep on check interval*/
+		time.Sleep(intervalCheck)
+	}
 }

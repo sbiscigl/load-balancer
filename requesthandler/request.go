@@ -33,7 +33,7 @@ func (rh *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write(entities.NewResponse(503, "there are no healthy servers").ToJSON())
 		w.WriteHeader(503)
 	} else {
-		req, err := http.NewRequest(r.Method, s.Host, r.Body)
+		req, err := http.NewRequest(r.Method, "http://"+s.Host, r.Body)
 		if err != nil {
 			log.Println("could not create request")
 		}

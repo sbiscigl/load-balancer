@@ -25,8 +25,8 @@ func NewServerHealthMap(p *params.Params) *HealthMap {
 }
 
 /*FindHealthy To balence traffic we use a counter that shows how many requests*/
-/*are currently being routed through a endpoint, thus we can spread out 		  */
-/*requests to the least utilized server instance														  */
+/*are currently being routed through a endpoint, thus we can spread out*/
+/*requests to the least utilized server instance*/
 func (hm *HealthMap) FindHealthy() (*Server, bool) {
 	var s *Server
 	found := false

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/sbiscigl/load-balancer/entities"
 	"github.com/sbiscigl/load-balancer/server"
 )
 
@@ -28,12 +29,8 @@ func New(s *server.HealthMap) *RequestHandler {
 func (rh *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s, found := rh.servers.FindHealthy()
 	if found == false {
-		/*
-		   The load balancer’s job is to take incomming traffic and proxy it to one of
-		   the available healthy instances. If none of the instances are healthy, the
-		   load balancer should return an HTTP 503 response code.
-		*/
-		//TODO: custom return type
+		/*return 503 and response with information*/
+		w.Write(entities.NewResponse(503, "there are no healthy servers").ToJSON())
 		w.WriteHeader(503)
 	} else {
 		req, err := http.NewRequest(r.Method, s.Host, r.Body)

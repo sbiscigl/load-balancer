@@ -46,11 +46,11 @@ func (rh *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		/*record in use*/
-		rh.servers.IncrimentUseCount(s.Host)
+		rh.servers.EditUsage(s.Host, 1)
 		/*execute request*/
 		resp, err := rh.client.Do(req)
 		/*record out of use*/
-		rh.servers.DecrimentUseCount(s.Host)
+		rh.servers.EditUsage(s.Host, -1)
 
 		if err != nil {
 			log.Println("error in requesting endpoint -- server most likely offline" +

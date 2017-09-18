@@ -18,7 +18,15 @@ const (
 
 /*HealthMap type for dealing with server use and health*/
 type HealthMap struct {
-	serverMap map[string]*Server
+	serverMap   map[string]*Server
+	usageChanel chan IncrimentMessage
+}
+
+/*IncrimentMessage message that will be used to change the usage number*/
+/*on a host*/
+type IncrimentMessage struct {
+	Host string
+	Num  int
 }
 
 /*NewServerHealthMap constructor for a HealthMap*/
@@ -28,7 +36,8 @@ func NewServerHealthMap(p *params.Params) *HealthMap {
 		serverMap[host] = NewServer(host, true, 0)
 	}
 	health := &HealthMap{
-		serverMap: serverMap,
+		serverMap:   serverMap,
+		usageChanel: make(chan IncrimentMessage),
 	}
 	/*start health check pool*/
 	go health.checkHealthOnServers()
@@ -65,14 +74,22 @@ func (hm *HealthMap) SetHealth(host string, health bool) {
 	hm.serverMap[host].IsHealthy = health
 }
 
-/*IncrimentUseCount incriments the useage of one of the instances*/
-func (hm *HealthMap) IncrimentUseCount(host string) {
-	hm.serverMap[host].IsUsed++
+/*PublishUsage publishes the usage of one of the instances*/
+func (hm *HealthMap) PublishUsage(host string, num int,
+	incrimentChan chan<- IncrimentMessage) {
+	incrimentChan <- IncrimentMessage{Host: host, Num: num}
 }
 
-/*DecrimentUseCount decirments the usages of one of the instances*/
-func (hm *HealthMap) DecrimentUseCount(host string) {
-	hm.serverMap[host].IsUsed--
+/*ConsumeUsage consumes from the channel and actually edits the instances*/
+func (hm *HealthMap) ConsumeUsage(incrimentChan <-chan IncrimentMessage) {
+	edit := <-incrimentChan
+	hm.serverMap[edit.Host].IsUsed += edit.Num
+}
+
+/*EditUsage edits a hosts usage without exposing underlying logic*/
+func (hm *HealthMap) EditUsage(host string, num int) {
+	go hm.PublishUsage(host, num, hm.usageChanel)
+	go hm.ConsumeUsage(hm.usageChanel)
 }
 
 /*RemoveServerAddresses removes server address from parameters*/

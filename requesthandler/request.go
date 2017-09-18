@@ -53,23 +53,28 @@ func (rh *RequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rh.servers.DecrimentUseCount(s.Host)
 
 		if err != nil {
-			log.Println("response error")
-		}
-
-		if resp.StatusCode >= 500 && resp.StatusCode < 600 {
-			/*set instance to unhealthy*/
-			rh.servers.SetHealth(s.Host, false)
+			log.Println("error in requesting endpoint -- server most likely offline" +
+				" removing " + s.Host + " from available servers")
+			/*Remove server from server list*/
+			rh.servers.RemoveServerAddresses(s.Host)
 			/*retry*/
 			rh.ServeHTTP(w, r)
 		} else {
-			defer resp.Body.Close()
-			read, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				log.Println("error reading body")
-			}
+			if resp.StatusCode >= 500 && resp.StatusCode < 600 {
+				/*set instance to unhealthy*/
+				rh.servers.SetHealth(s.Host, false)
+				/*retry*/
+				rh.ServeHTTP(w, r)
+			} else {
+				defer resp.Body.Close()
+				read, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					log.Println("error reading body")
+				}
 
-			w.WriteHeader(resp.StatusCode)
-			w.Write(read)
+				w.WriteHeader(resp.StatusCode)
+				w.Write(read)
+			}
 		}
 	}
 }

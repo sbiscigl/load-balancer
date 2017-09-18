@@ -18,8 +18,9 @@ const (
 
 /*HealthMap type for dealing with server use and health*/
 type HealthMap struct {
-	serverMap   map[string]*Server
-	usageChanel chan IncrimentMessage
+	serverMap    map[string]*Server
+	usageChanel  chan IncrimentMessage
+	healthChanel chan HealthMessage
 }
 
 /*IncrimentMessage message that will be used to change the usage number*/
@@ -29,6 +30,13 @@ type IncrimentMessage struct {
 	Num  int
 }
 
+/*HealthMessage message that will be used to change the health of a server*/
+/*on a host*/
+type HealthMessage struct {
+	Host   string
+	Health bool
+}
+
 /*NewServerHealthMap constructor for a HealthMap*/
 func NewServerHealthMap(p *params.Params) *HealthMap {
 	serverMap := make(map[string]*Server, 0)
@@ -36,8 +44,9 @@ func NewServerHealthMap(p *params.Params) *HealthMap {
 		serverMap[host] = NewServer(host, true, 0)
 	}
 	health := &HealthMap{
-		serverMap:   serverMap,
-		usageChanel: make(chan IncrimentMessage),
+		serverMap:    serverMap,
+		usageChanel:  make(chan IncrimentMessage),
+		healthChanel: make(chan HealthMessage),
 	}
 	/*start health check pool*/
 	go health.checkHealthOnServers()
@@ -69,9 +78,22 @@ func (hm *HealthMap) PrintMap() {
 	log.Println("}")
 }
 
+/*PublishHealth publishes the health of one of the instances*/
+func (hm *HealthMap) PublishHealth(host string, health bool,
+	healthChan chan<- HealthMessage) {
+	healthChan <- HealthMessage{Host: host, Health: health}
+}
+
+/*ConsumeHealth consumes from the channel and actually edits the instances*/
+func (hm *HealthMap) ConsumeHealth(healthChan <-chan HealthMessage) {
+	edit := <-healthChan
+	hm.serverMap[edit.Host].IsHealthy = edit.Health
+}
+
 /*SetHealth sets health of one of the servers*/
 func (hm *HealthMap) SetHealth(host string, health bool) {
-	hm.serverMap[host].IsHealthy = health
+	go hm.PublishHealth(host, health, hm.healthChanel)
+	go hm.ConsumeHealth(hm.healthChanel)
 }
 
 /*PublishUsage publishes the usage of one of the instances*/

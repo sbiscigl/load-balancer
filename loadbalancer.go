@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/sbiscigl/load-balancer/params"
@@ -14,5 +15,8 @@ func main() {
 	balancer := requesthandler.New(health)
 
 	http.Handle("/", balancer)
-	http.ListenAndServe(":"+env.GetPort(), nil)
+	err := http.ListenAndServe(":"+env.GetPort(), nil)
+	if err != nil {
+		log.Println("cannot start server on that port")
+	}
 }

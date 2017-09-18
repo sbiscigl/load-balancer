@@ -75,26 +75,45 @@ func (hm *HealthMap) DecrimentUseCount(host string) {
 	hm.serverMap[host].IsUsed--
 }
 
+/*RemoveServerAddresses removes server address from parameters*/
+func (hm *HealthMap) RemoveServerAddresses(host string) {
+	key := ""
+	found := false
+	for k := range hm.serverMap {
+		if k == host {
+			found = true
+			key = k
+		}
+	}
+	if found {
+		delete(hm.serverMap, key)
+	}
+}
+
 func (hm *HealthMap) checkHealthOnServers() {
 	client := &http.Client{}
 	for {
 		for k, v := range hm.serverMap {
 			resp, err := client.Get("http://" + k + "/_health")
 			if err != nil {
-				log.Println("error in requesting health")
-			}
-			if resp.StatusCode != 200 {
-				log.Println("health check failing on host: " + k + " with status: " +
-					resp.Status)
-			}
-			defer resp.Body.Close()
-			read, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				log.Println("error reading body")
-			}
+				log.Println("error in requesting health -- server most likely offline" +
+					" removing " + k + " from available servers")
+				/*Remove server from server list*/
+				hm.RemoveServerAddresses(k)
+			} else {
+				if resp.StatusCode != 200 {
+					log.Println("health check failing on host: " + k + " with status: " +
+						resp.Status)
+				}
+				defer resp.Body.Close()
+				read, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					log.Println("error reading body")
+				}
 
-			health := entities.NewHealthCheckResponseFromBytes(read).IsHealthy()
-			hm.serverMap[k] = NewServer(v.Host, health, v.IsUsed)
+				health := entities.NewHealthCheckResponseFromBytes(read).IsHealthy()
+				hm.serverMap[k] = NewServer(v.Host, health, v.IsUsed)
+			}
 		}
 		/*debugging for looking at the health status of serevers, is very verbose*/
 		if debug {
